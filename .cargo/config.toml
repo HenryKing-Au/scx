@@ -1,2 +1,15 @@
 [alias]
 xtask = "run --package xtask --"
+
+# Android arm64 (Bionic): uncomment and replace with your NDK path and API level.
+# The linker must be the NDK LLVM wrapper (same API as CC_aarch64_linux_android).
+# Example API 34 on Linux x86_64 host:
+#
+# [target.aarch64-linux-android]
+# linker = "/path/to/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang"
+#
+# macOS host example:
+# linker = "/path/to/android-ndk/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android34-clang"
+#
+# Also set BPF_CLANG, CC_aarch64_linux_android, AR_aarch64_linux_android, and
+# SCX_ANDROID_LIBELF_PREFIX / LIBBPF_SYS_* as needed (see CARGO_BUILD.md §8.1 and scripts/android/build_scx_lavd.sh).

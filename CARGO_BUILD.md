@@ -201,6 +201,76 @@ Make sure the target is installed first:
 rustup target add x86_64-unknown-linux-musl
 ```
 
+### 8.1 Android NDK (`aarch64-linux-android`)
+
+Build user-space schedulers (Rust + libbpf + BPF object produced at compile time) for **64-bit Android (arm64-v8a)** using the Rust triple **`aarch64-linux-android`** (Bionic).
+
+**Runtime note:** Schedulers need a kernel with **sched_ext** enabled and compatible with the BPF in this tree. Stock phone/tablet images often do not ship sched_ext; this section only covers **cross-compiling** the binaries.
+
+#### Prerequisites
+
+1. **Android NDK** (r26 or newer recommended). Set `ANDROID_NDK_HOME` to the NDK root (the directory that contains `toolchains/llvm`).
+2. **API level** (e.g. 24, 31, 34). NDK compiler wrappers look like `aarch64-linux-android<api>-clang` under `toolchains/llvm/prebuilt/<host>/bin/`.
+3. Install the Rust target:
+
+   ```bash
+   rustup target add aarch64-linux-android
+   ```
+
+#### Why `BPF_CLANG` and `CC_*` matter
+
+- **`build.rs`** in scheduler crates uses [`scx_cargo`](rust/scx_cargo), which runs `clang --version --target=$TARGET`. When `$TARGET` is `aarch64-linux-android`, a host `clang` that does not support that triple will fail immediately.
+- Point **`BPF_CLANG`** at the NDK **LLVM `clang`** (same sysroot as your API level) so that probe succeeds.
+- **`libbpf-sys`** compiles C libbpf during the build; set **`CC_aarch64_linux_android`** and **`AR_aarch64_linux_android`** to the NDK Clang / `llvm-ar` wrappers so that static lib links for Android.
+
+Example (Linux host, API 34 — adjust paths and API to match your machine):
+
+```bash
+export ANDROID_NDK_HOME=/path/to/ndk
+NDK_BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+export BPF_CLANG="$NDK_BIN/clang"
+export CC_aarch64_linux_android="$NDK_BIN/aarch64-linux-android34-clang"
+export AR_aarch64_linux_android="$NDK_BIN/llvm-ar"
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK_BIN/aarch64-linux-android34-clang"
+```
+
+Ensure the **linker** Cargo uses is also from the NDK (see [`.cargo/config.toml`](.cargo/config.toml) commented template), set **`CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER`** as above, or use **`cargo-ndk`**, which wires linker and compiler env for you:
+
+```bash
+cargo install cargo-ndk
+cargo ndk -t arm64-v8a -p 34 -- build --release -p scx_lavd
+```
+
+(`cargo-ndk` sets API level and target; you may still need `BPF_CLANG` as above if the build script’s `clang --target=aarch64-linux-android` must resolve against the NDK.)
+
+#### Suggested first build (single crate)
+
+Start with one scheduler to reduce dependency surface before building the whole workspace:
+
+```bash
+./scripts/android/build_scx_lavd.sh --release -p scx_lavd --target aarch64-linux-android
+```
+
+#### libbpf / libelf (required for `libbpf-sys`)
+
+With default `libbpf-rs` / `libbpf-sys` settings, the build **compiles** vendored libbpf C sources using `CC_aarch64_linux_android`. That requires **libelf** and **zlib** headers and **target** static (or shared) libraries. The Android NDK sysroot **does not** ship libelf.
+
+- **Do not** enable `libbpf-rs` feature **`vendored`** for Android: vendored **elfutils** expects GNU **argp** and fails under Bionic (e.g. `configure: error: failed to find argp_parse`).
+- Point the build at a **prefix** where you have cross-built or copied **libelf** + **zlib** for `aarch64-linux-android` (typical sources: **AOSP** `external/elfutils` / prebuilts, or a cross environment such as **dockcross**). Then set, for example:
+
+  ```bash
+  export SCX_ANDROID_LIBELF_PREFIX=/path/to/prefix   # contains include/ and lib/
+  ./scripts/android/build_scx_lavd.sh --release -p scx_lavd --target aarch64-linux-android
+  ```
+
+  The helper script maps that to `LIBBPF_SYS_EXTRA_CFLAGS` and `LIBBPF_SYS_LIBRARY_PATH_aarch64_linux_android` (see [`libbpf-sys` README](https://crates.io/crates/libbpf-sys) for other `LIBBPF_SYS_*` knobs).
+
+If linking fails with missing **zlib** only, add `-lz` via your prefix’s `libz` or adjust `LIBBPF_SYS_*` per the error output.
+
+#### Alternative: Termux / glibc on device
+
+If the environment is **glibc + Linux ABI** (e.g. some Termux setups), the triple is often **`aarch64-unknown-linux-gnu`** with a Linux cross toolchain (`aarch64-linux-gnu-gcc`), not the NDK. BPF is still built as `-target bpf` on the host; you do not need `clang` to understand the `linux-android` triple for that path.
+
 ---
 
 ## 9. Debugging
@@ -236,7 +306,7 @@ cargo clean
 - **Install from crates.io**: `cargo install <crate_name>`
 - **Make available system-wide**: copy binary to `/usr/local/bin` or add `~/.cargo/bin` to `PATH`
 - **Run tests**: `cargo test`
-- **Cross-compile**: `cargo build --target=<target>`
+- **Cross-compile**: `cargo build --target=<target>` (see §8.1 for **Android NDK / `aarch64-linux-android`**)
 - **Profiles available**: `release`, `release-tiny`, `release-fast`
 
 This approach allows you to build and test either the whole project at once or focus on a single scheduler or tool.
