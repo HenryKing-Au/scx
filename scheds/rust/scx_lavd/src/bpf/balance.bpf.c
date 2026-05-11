@@ -177,9 +177,20 @@ int plan_x_cpdom_migration(void)
 		 */
 		if (no_fast_lb) {
 			u64 qlen = cpdomc->nr_queued_task;
-			u64 qlen_invr = (qlen << (LAVD_SHIFT * 3)) /
-					cpdomc->cap_sum_active_cpus;
-			cpdomc->load_invr = util + qlen_invr;
+			u32 cap_sum = cpdomc->cap_sum_active_cpus;
+
+			/*
+			 * cap_sum can be zero while nr_active_cpus > 0 if every
+			 * active CPU has effective_capacity == 0. Avoid division by
+			 * zero; queued load term is dropped in that edge case.
+			 */
+			if (cap_sum) {
+				u64 qlen_invr = (qlen << (LAVD_SHIFT * 3)) / cap_sum;
+
+				cpdomc->load_invr = util + qlen_invr;
+			} else {
+				cpdomc->load_invr = util;
+			}
 			if (qlen)
 				nz_qlen++;
 		} else {

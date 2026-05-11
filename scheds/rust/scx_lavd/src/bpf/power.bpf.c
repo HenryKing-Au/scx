@@ -444,7 +444,15 @@ int do_core_compaction(void)
 			big_capacity += cpuc->effective_capacity;
 	}
 
-	cur_big_core_scale = (big_capacity << LAVD_SHIFT) / sum_capacity;
+	/*
+	 * sum_capacity can be zero only if every online CPU reports
+	 * effective_capacity == 0 (bad firmware/EM data). Avoid division by zero;
+	 * treat as no big-core share until capacities become non-zero.
+	 */
+	if (sum_capacity)
+		cur_big_core_scale = (big_capacity << LAVD_SHIFT) / sum_capacity;
+	else
+		cur_big_core_scale = 0;
 	sys_stat.nr_active = nr_active;
 
 	/*

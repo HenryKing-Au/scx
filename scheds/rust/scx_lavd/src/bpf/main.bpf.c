@@ -2233,7 +2233,13 @@ static s32 init_per_cpu_ctx(u64 now)
 		if (cpuc->max_capacity < one_little_max_capacity)
 			one_little_max_capacity = cpuc->max_capacity;
 	}
-	default_big_core_scale = (big_capacity << LAVD_SHIFT) / sum_capacity;
+	/*
+	 * Guard against all-zero cpu_capacity[] (misconfigured platform).
+	 */
+	if (sum_capacity)
+		default_big_core_scale = (big_capacity << LAVD_SHIFT) / sum_capacity;
+	else
+		default_big_core_scale = 0;
 	total_max_capacity = sum_capacity;
 
 	/*
