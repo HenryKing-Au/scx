@@ -5,6 +5,7 @@ target
 build/
 *.swp
 .cache/
+.android-aarch64-deps/
 .vscode/
 tags
 *.o

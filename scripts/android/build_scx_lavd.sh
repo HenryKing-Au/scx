@@ -4,6 +4,12 @@
 # target — set SCX_ANDROID_LIBELF_PREFIX (see CARGO_BUILD.md §8.1).
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+DEFAULT_PREFIX="$ROOT/.android-aarch64-deps/prefix"
+if [[ -z "${SCX_ANDROID_LIBELF_PREFIX:-}" && -f "$DEFAULT_PREFIX/lib/libelf.a" ]]; then
+	export SCX_ANDROID_LIBELF_PREFIX="$DEFAULT_PREFIX"
+fi
+
 if [[ -z "${ANDROID_NDK_HOME:-}" ]]; then
 	echo "error: set ANDROID_NDK_HOME to the NDK root (directory containing toolchains/llvm)." >&2
 	exit 1
@@ -21,8 +27,13 @@ Darwin) NDK_HOST="${ANDROID_NDK_HOST_DIR:-darwin-x86_64}" ;;
 esac
 
 NDK_BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/bin"
+NDK_SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/sysroot"
 if [[ ! -x "$NDK_BIN/clang" ]]; then
 	echo "error: expected clang at $NDK_BIN/clang" >&2
+	exit 1
+fi
+if [[ ! -d "$NDK_SYSROOT/usr/include" ]]; then
+	echo "error: expected sysroot headers at $NDK_SYSROOT/usr/include" >&2
 	exit 1
 fi
 

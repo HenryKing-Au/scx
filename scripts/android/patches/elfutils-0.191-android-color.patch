@@ -1,0 +1,16 @@
+--- a/lib/color.c
++++ b/lib/color.c
+@@ -37,6 +37,13 @@
+ #include "libeu.h"
+ #include "color.h"
+ 
++/* Android / Bionic: error.h has no program_invocation_short_name. */
++#ifndef program_invocation_short_name
++static char scx_prog_inv[] = "elfutils";
++#define program_invocation_short_name scx_prog_inv
++#define program_invocation_name scx_prog_inv
++#endif
++
+ /* Prototype for option handler.  */
+ static error_t parse_opt (int key, char *arg, struct argp_state *state);
+ 

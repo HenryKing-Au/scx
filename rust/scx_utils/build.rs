@@ -71,11 +71,35 @@ fn main() {
         env::var("TARGET").unwrap()
     );
 
-    let bindings = bindgen::Builder::default()
+    let mut perf_bindgen = bindgen::Builder::default()
         .header("perf_wrapper.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .prepend_enum_name(false)
-        .derive_default(true)
+        .derive_default(true);
+
+    // Cross-compiling to Android: bindgen must use the NDK sysroot, not the
+    // host's /usr/include/linux (wrong arch and missing asm/types.h layout).
+    let target = env::var("TARGET").unwrap_or_default();
+    if target.contains("android") {
+        if let Ok(ndk) = env::var("ANDROID_NDK_HOME") {
+            let host_dir = env::var("ANDROID_NDK_HOST_DIR").unwrap_or_else(|_| {
+                if cfg!(target_os = "linux") {
+                    "linux-x86_64".into()
+                } else if cfg!(target_os = "macos") {
+                    "darwin-x86_64".into()
+                } else {
+                    "linux-x86_64".into()
+                }
+            });
+            let sysroot = format!("{ndk}/toolchains/llvm/prebuilt/{host_dir}/sysroot");
+            perf_bindgen = perf_bindgen
+                .clang_arg("--sysroot")
+                .clang_arg(&sysroot)
+                .clang_arg(format!("--target={target}"));
+        }
+    }
+
+    let bindings = perf_bindgen
         .generate()
         .expect("Unable to generate bindings");
 
