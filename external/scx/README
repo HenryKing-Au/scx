@@ -14,8 +14,45 @@ Do not add a second Android.bp under external/scx/ inside the same checkout:
 that would appear as external/scx/external/scx/Android.bp when this repo is
 already mounted at external/scx.
 
-Regenerate Android.bp from Cargo (full AOSP checkout):
+Generated Soong modules
+-----------------------
+
+`cargo_embargo` writes an `Android.bp` next to each Cargo package in this
+workspace (see `cargo_embargo.json` at the repository root). The checked-in
+files were produced with `run_cargo: false` (metadata-only) so they stay
+compatible with current upstream `rustc`/`cargo` output; `cargo_embargo` from
+AOSP should be refreshed periodically.
+
+Regenerate locally (without a full tree, stub `bpfmt` on PATH that exits 0):
+
+  export PATH="/path/to/stub-dir:$PATH"   # stub-dir contains executable `bpfmt`
+  cargo_embargo --cargo-bin "$(dirname "$(which cargo)")" generate cargo_embargo.json
+
+In a full AOSP checkout:
 
   cd external/scx
   m cargo_embargo
   cargo_embargo generate cargo_embargo.json
+
+Manifest snippet
+----------------
+
+  <project path="external/scx" name="sched-ext/scx" revision="..." />
+
+Compile check in AOSP
+---------------------
+
+After `repo sync`, add the project to your manifest (or use `git clone` into
+`external/scx`), then from the Android tree root:
+
+  source build/envsetup.sh
+  lunch aosp_arm64-eng   # or another arm64 target
+  m scx_lavd
+
+`rustlibs` reference the platform `external/rust/crates` modules (for example
+`libanyhow`, `liblog_rust`). If versions drift from this tree, re-run
+`cargo_embargo` inside AOSP or adjust crate pins.
+
+Note: enabling `"run_cargo": true` in `cargo_embargo.json` replays `cargo build -v`
+through Soong’s parser; very new `rustc` flags can fail until `cargo_embargo`
+is updated to match your toolchain.

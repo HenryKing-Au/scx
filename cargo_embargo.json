@@ -1,10 +1,9 @@
 {
-  "run_cargo": true,
+  "run_cargo": false,
   "tests": false,
   "workspace": true,
   "package": {
     "scx_lavd": {
-      "copy_out": true,
       "license_text": ["LICENSE"]
     }
   },
