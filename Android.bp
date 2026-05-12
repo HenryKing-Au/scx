@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-only
+//
+// This tree is intended to be checked out in AOSP as external/scx (see
+// external/scx/README in this repo). Soong must live next to Cargo.toml so
+// srcs paths stay within the package directory.
+//
+// The scx workspace uses Cargo build.rs (BPF via scx_cargo). Generate full
+// rust_* Soong modules from Cargo metadata inside a full AOSP tree:
+//
+//   cd external/scx
+//   m cargo_embargo
+//   cargo_embargo generate cargo_embargo.json
+//
+// That overwrites this file with generated rules. cargo_embargo.json at the
+// repository root seeds generation for the scx_lavd package (workspace build).
+
+package {
+    default_applicable_licenses: ["external_scx_license"],
+}
+
+license {
+    name: "external_scx_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-GPL-2.0-only",
+    ],
+    license_text: [
+        "LICENSE",
+    ],
+}
+
+soong_namespace {
+}
