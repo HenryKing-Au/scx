@@ -1,0 +1,14 @@
+{
+  "run_cargo": true,
+  "tests": false,
+  "workspace": true,
+  "package": {
+    "scx_lavd": {
+      "copy_out": true,
+      "license_text": ["LICENSE"]
+    }
+  },
+  "module_visibility": {
+    "scx_lavd": ["//visibility:public"]
+  }
+}

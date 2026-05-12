@@ -1,0 +1,21 @@
+AOSP path convention
+====================
+
+In the Android source tree, this sched-ext/scx repository should be the
+project rooted at:
+
+  external/scx/
+
+So the Soong file in this repository is:
+
+  external/scx/Android.bp   (i.e. ../Android.bp at repo root)
+
+Do not add a second Android.bp under external/scx/ inside the same checkout:
+that would appear as external/scx/external/scx/Android.bp when this repo is
+already mounted at external/scx.
+
+Regenerate Android.bp from Cargo (full AOSP checkout):
+
+  cd external/scx
+  m cargo_embargo
+  cargo_embargo generate cargo_embargo.json
