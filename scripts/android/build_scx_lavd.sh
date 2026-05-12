@@ -48,6 +48,32 @@ if [[ -n "${SCX_ANDROID_LIBELF_PREFIX:-}" ]]; then
 	export LIBBPF_SYS_LIBRARY_PATH_aarch64_linux_android="${LIBBPF_SYS_LIBRARY_PATH_aarch64_linux_android:-$lib}"
 fi
 
+# libbpf-rs `static` for Android can unify onto the host libbpf-sys (build deps).
+# Point the host linker at libelf.a; patched libbpf-sys adds -lzstd for linux-gnu
+# hosts when static-libelf is enabled. Paths depend on host arch (Debian multiarch).
+_host_libelf_static_path() {
+	local d arch
+	arch="$(uname -m)"
+	for d in "/usr/lib/${arch}-linux-gnu" /usr/lib64 /usr/lib; do
+		if [[ -f "$d/libelf.a" ]]; then
+			echo "$d"
+			return 0
+		fi
+	done
+	return 1
+}
+if [[ "$(uname -s)" == Linux ]]; then
+	if [[ "$(uname -m)" == x86_64 && -z "${LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_gnu:-}" ]]; then
+		if hlp="$(_host_libelf_static_path)"; then
+			export LIBBPF_SYS_LIBRARY_PATH_x86_64_unknown_linux_gnu="$hlp"
+		fi
+	elif [[ "$(uname -m)" == aarch64 && -z "${LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu:-}" ]]; then
+		if hlp="$(_host_libelf_static_path)"; then
+			export LIBBPF_SYS_LIBRARY_PATH_aarch64_unknown_linux_gnu="$hlp"
+		fi
+	fi
+fi
+
 echo "Using NDK clang: $CC_aarch64_linux_android (API $API)" >&2
 if [[ -z "${SCX_ANDROID_LIBELF_PREFIX:-}" ]]; then
 	echo "note: SCX_ANDROID_LIBELF_PREFIX is unset; libbpf-sys will need libelf headers/libs for aarch64-linux-android (see CARGO_BUILD.md §8.1)." >&2

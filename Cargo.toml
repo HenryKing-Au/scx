@@ -33,6 +33,12 @@ members = [
 ]
 resolver = "2"
 
+# Patched libbpf-sys: emit LIBBPF_SYS_LIBRARY_PATH link-search before -l flags
+# (fixes static libelf resolution), and link libzstd for glibc Linux host builds
+# when static-libelf is unified from Android libbpf-rs (see CARGO_BUILD.md §8.1).
+[patch.crates-io]
+libbpf-sys = { path = "rust/libbpf_sys_scx" }
+
 [profile.release]
 lto = "thin"
 

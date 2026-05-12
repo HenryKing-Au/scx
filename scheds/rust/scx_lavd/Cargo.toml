@@ -38,6 +38,10 @@ combinations = "0.1"
 rlimit = "0.11"
 nix = "0.31"
 
+# Android: static libelf + zlib into libbpf-sys so the device does not need libelf.so.1.
+[target.'cfg(target_os = "android")'.dependencies]
+libbpf-rs = { version = "=0.26.2", features = ["static"] }
+
 [build-dependencies]
 scx_cargo = { path = "../../../rust/scx_cargo", version = "1.1.0" }
 

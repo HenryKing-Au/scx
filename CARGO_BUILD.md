@@ -254,18 +254,17 @@ rustup target add aarch64-linux-android
 export ANDROID_NDK_HOME=/path/to/ndk   # same as above
 ./scripts/android/bootstrap_android_lavd_deps.sh
 ./scripts/android/build_scx_lavd.sh build --release -p scx_lavd --target aarch64-linux-android
-./scripts/android/package_scx_lavd_android_runtime.sh
 ```
 
 - **`bootstrap_android_lavd_deps.sh`** writes to **`$REPO/.android-aarch64-deps/prefix`** unless you set **`SCX_ANDROID_LIBELF_PREFIX`** / **`SCX_ANDROID_STAGEDIR`**. Re-run with **`SCX_ANDROID_REBUILD_DEPS=1`** to force a rebuild.
 - **`build_scx_lavd.sh`** sets `BPF_CLANG`, `CC_*`, `AR_*`, linker, and (if the default prefix exists) **`SCX_ANDROID_LIBELF_PREFIX`** automatically. You can still set **`SCX_ANDROID_LIBELF_PREFIX`** to your own prefix (must contain `include/` with `libelf.h` / `gelf.h` and `lib/` with `libelf.a`, `libz.a`, plus the static libs used to build them — the bootstrap output is a known-good set).
-- **Runtime (`libelf.so.1` not found):** the cross-built `scx_lavd` binary is usually linked **dynamically** against **`libelf.so.1`** from your prefix (Android does not ship it system-wide). Either push the shared library next to the binary, set **`LD_LIBRARY_PATH`** to the directory that contains **`libelf.so.1`**, or run **`./scripts/android/package_scx_lavd_android_runtime.sh`** to copy `scx_lavd` plus the needed **`libelf*.so`** files from **`SCX_ANDROID_LIBELF_PREFIX`** (default: **`.android-aarch64-deps/prefix`**) into **`.android-aarch64-deps/stage/`** for easy `adb push`.
+- **Static libelf / zlib on device:** [`scheds/rust/scx_lavd/Cargo.toml`](scheds/rust/scx_lavd/Cargo.toml) enables **`libbpf-rs`** feature **`static`** for `target_os = "android"`, so **`libbpf-sys`** links **`libelf`** and **`zlib`** as **static** archives from your prefix; the **`scx_lavd`** binary does **not** need **`libelf.so.1`** on the device. The workspace uses a small **[`libbpf-sys` fork](rust/libbpf_sys_scx)** (via **`[patch.crates-io]`** in the root [`Cargo.toml`](Cargo.toml)) so `LIBBPF_SYS_LIBRARY_PATH` is applied **before** `-l` flags and so **glibc Linux host** builds pick up **`libzstd`** when distro **`libelf.a`** references ZSTD (install **`libelf-dev`** and **`libzstd-dev`** on Debian/Ubuntu). **`build_scx_lavd.sh`** auto-sets **`LIBBPF_SYS_LIBRARY_PATH_<host>`** on Linux when **`libelf.a`** is under **`/usr/lib/<arch>-linux-gnu`**.
 
 **`scx_utils` / bindgen:** for `aarch64-linux-android`, [`rust/scx_utils/build.rs`](rust/scx_utils/build.rs) passes the NDK **`--sysroot`** to bindgen when **`ANDROID_NDK_HOME`** is set (and uses **`ANDROID_NDK_HOST_DIR`** on macOS if the prebuilt folder is not `darwin-x86_64`). Do **not** set global **`BINDGEN_EXTRA_CLANG_ARGS`** to an Android `--target` here — that breaks BPF bindgen, which must stay on **`--target=bpf`**.
 
 #### libbpf-sys / manual prefix (optional)
 
-If you maintain your own sysroot instead of the bootstrap script, keep **`libbpf-rs` default features** (do **not** enable feature **`vendored`**: vendored elfutils expects GNU **argp** and fails under Bionic). Export **`SCX_ANDROID_LIBELF_PREFIX`** and use **`build_scx_lavd.sh`**, which maps it to **`LIBBPF_SYS_EXTRA_CFLAGS`** and **`LIBBPF_SYS_LIBRARY_PATH_aarch64_linux_android`** (see [`libbpf-sys` on crates.io](https://crates.io/crates/libbpf-sys)).
+If you maintain your own sysroot instead of the bootstrap script, keep **`libbpf-rs` default features** (do **not** enable feature **`vendored`**: vendored elfutils expects GNU **argp** and fails under Bionic). Export **`SCX_ANDROID_LIBELF_PREFIX`** and use **`build_scx_lavd.sh`**, which maps it to **`LIBBPF_SYS_EXTRA_CFLAGS`** and **`LIBBPF_SYS_LIBRARY_PATH_aarch64_linux_android`**. The workspace **`libbpf-sys`** patch applies to all crates that depend on it (same version as crates.io).
 
 #### Alternative: Termux / glibc on device
 
