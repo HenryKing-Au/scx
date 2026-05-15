@@ -6,12 +6,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # Host clang for BPF; NDK prepends its toolchain to PATH below.
-if [[ -x /usr/bin/clang-19 ]]; then
-  export BPF_CLANG=/usr/bin/clang-19
-elif [[ -x /usr/bin/clang ]]; then
-  export BPF_CLANG=/usr/bin/clang
+if command -v clang >/dev/null 2>&1; then
+  export BPF_CLANG="$(command -v clang)"
+elif command -v clang-19 >/dev/null 2>&1; then
+  export BPF_CLANG="$(command -v clang-19)"
 else
-  echo "host clang not found (/usr/bin/clang or clang-19)" >&2
+  echo "host clang not found (install clang for BPF build)" >&2
   exit 1
 fi
 
@@ -77,10 +77,16 @@ build_android_compat_libs
 patch_libbpf_sys_android
 clean_elfutils_artifacts
 
+# Statically link libbpf/libelf/zlib (vendored). Also request fully static Bionic link.
+export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-static -C link-arg=-static-libgcc"
+
 cargo build --release -p scx_lavd --target aarch64-linux-android "$@"
 
 OUT="${ROOT}/target/aarch64-linux-android/release/scx_lavd"
 echo ""
 echo "Build succeeded: ${OUT}"
 file "${OUT}"
-readelf -d "${OUT}" 2>/dev/null | grep NEEDED || echo "(no dynamic NEEDED entries)"
+echo "Dynamic dependencies (if any):"
+readelf -d "${OUT}" 2>/dev/null | grep NEEDED || echo "  (none — fully static)"
+echo ""
+echo "Third-party libs (libbpf, libelf, zlib) are linked statically via libbpf-rs vendored feature."
